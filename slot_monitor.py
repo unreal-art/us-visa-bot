@@ -25,11 +25,12 @@ logger = logging.getLogger(__name__)
 class LightweightSlotMonitor:
     """Lightweight slot monitor using checkvisaslots.com API"""
     
-    def __init__(self):
+    def __init__(self, interval: int = 30):
         self.api_url = 'https://app.checkvisaslots.com/slots/v3'
         self.api_key = 'HZK5KL'
         self.telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
         self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
+        self.interval = interval
         
         # Headers from your curl command
         self.headers = {
@@ -48,21 +49,15 @@ class LightweightSlotMonitor:
             'x-api-key': self.api_key
         }
         
-        # Consulate mapping
+        # Consulate mapping - only main consulates (no VAC)
         self.consulate_mapping = {
             'CHENNAI': 'Chennai',
-            'CHENNAI VAC': 'Chennai VAC',
             'HYDERABAD': 'Hyderabad',
-            'HYDERABAD VAC': 'Hyderabad VAC',
-            'KOLKATA': 'Kolkata',
-            'KOLKATA VAC': 'Kolkata VAC',
-            'MUMBAI': 'Mumbai',
-            'MUMBAI VAC': 'Mumbai VAC',
-            'NEW DELHI': 'New Delhi',
-            'NEW DELHI VAC': 'New Delhi VAC',
-            'DELHI': 'Delhi',
-            'DELHI VAC': 'Delhi VAC'
+            'MUMBAI': 'Mumbai'
         }
+        
+        # Only monitor these consulates
+        self.monitored_consulates = {'CHENNAI', 'HYDERABAD', 'MUMBAI'}
 
     async def check_slots(self) -> List[Dict]:
         """Check for available slots using the API"""
@@ -95,7 +90,11 @@ class LightweightSlotMonitor:
                     location = slot_info.get('visa_location', 'Unknown')
                     slots_count = slot_info.get('slots', 0)
                     
-                    if slots_count > 0:
+                    # Only check main consulates (no VAC)
+                    if (slots_count > 0 and 
+                        location.upper() in self.monitored_consulates and 
+                        'VAC' not in location.upper()):
+                        
                         consulate_name = self.consulate_mapping.get(location.upper(), location)
                         available_slots.append({
                             'location': consulate_name,
@@ -165,9 +164,9 @@ class LightweightSlotMonitor:
             
         print("=" * 50)
 
-    async def monitor_continuously(self, interval: int = 180):
+    async def monitor_continuously(self):
         """Monitor slots continuously"""
-        logger.info(f"🚀 Starting slot monitoring (interval: {interval}s)")
+        logger.info(f"🚀 Starting slot monitoring (interval: {self.interval}s)")
         logger.info("Press Ctrl+C to stop")
         
         last_notification_time = None
@@ -191,8 +190,8 @@ class LightweightSlotMonitor:
                 else:
                     print("⏳ No available slots found")
                 
-                print(f"⏰ Next check in {interval} seconds...")
-                await asyncio.sleep(interval)
+                print(f"⏰ Next check in {self.interval} seconds...")
+                await asyncio.sleep(self.interval)
                 
         except KeyboardInterrupt:
             logger.info("🛑 Monitoring stopped by user")
@@ -204,7 +203,10 @@ async def main():
     print("🇮🇳 Indian US Visa Slot Monitor")
     print("=" * 40)
     
-    monitor = LightweightSlotMonitor()
+    # Configurable interval (default: 30 seconds)
+    interval = int(os.getenv('MONITOR_INTERVAL', '30'))
+    
+    monitor = LightweightSlotMonitor(interval=interval)
     
     # Check if Telegram is configured
     if monitor.telegram_bot_token and monitor.telegram_chat_id:
@@ -212,8 +214,11 @@ async def main():
     else:
         print("⚠️ Telegram notifications disabled (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)")
     
+    print(f"📊 Monitoring: Chennai, Mumbai, Hyderabad (main consulates only)")
+    print(f"⏰ Check interval: {interval} seconds")
     print("🚀 Starting monitoring...")
-    await monitor.monitor_continuously(interval=180)  # Check every 3 minutes
+    
+    await monitor.monitor_continuously()
 
 if __name__ == "__main__":
     asyncio.run(main())
