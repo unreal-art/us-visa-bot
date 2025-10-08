@@ -23,10 +23,10 @@ else
 fi
 
 # Check if github_monitor.py exists
-if [ -f "github_monitor.py" ]; then
-    echo "✅ GitHub monitor script exists"
+if [ -f "monitor.py" ]; then
+    echo "✅ Monitor script exists"
 else
-    echo "❌ github_monitor.py not found"
+    echo "❌ monitor.py not found"
 fi
 
 echo ""
@@ -52,7 +52,6 @@ echo "🎉 Your automated visa slot monitor will run every 5 minutes!"
 # Check if .env file exists for local testing
 if [ -f ".env" ]; then
     echo ""
-    echo "💡 Local testing:"
-    echo "   python github_monitor.py  # Test locally"
-    echo "   python slot_monitor.py    # Interactive monitoring"
+echo "💡 Local testing:"
+echo "   uv run monitor.py         # Run monitor"
 fi

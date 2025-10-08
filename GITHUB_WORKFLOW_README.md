@@ -17,7 +17,7 @@ This repository includes a GitHub Actions workflow that automatically monitors I
 1. Fork or clone this repository
 2. Ensure the following files are present:
    - `.github/workflows/slot-monitor.yml`
-   - `github_monitor.py`
+   - `monitor.py`
 
 ### 2. GitHub Secrets Configuration
 
@@ -155,6 +155,15 @@ The monitor checks all Indian consulates:
 - **Artifacts**: Logs are saved as artifacts for 7 days
 - **Debugging**: Enable verbose logging by checking the workflow logs
 
+## 🧪 Local Testing
+
+Test the monitor locally using `uv`:
+
+```bash
+# Run the monitor
+uv run monitor.py
+```
+
 ## 🔧 Customization
 
 ### Change Monitoring Interval
@@ -177,7 +186,7 @@ env:
 
 ### Add More Consulates
 
-Edit `github_monitor.py` and add to `all_consulate_mapping`:
+Edit `monitor.py` and add to `all_consulate_mapping`:
 
 ```python
 'NEW_CITY': 'New City',
