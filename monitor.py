@@ -33,7 +33,7 @@ class LightweightSlotMonitor:
     
     def __init__(self, interval: int = 30):
         self.api_url = 'https://app.checkvisaslots.com/slots/v3'
-        self.api_key = os.getenv('SLOT_API_KEY')
+        self.api_key = os.getenv('SLOT_API_KEY', 'HZK5KL')  # Default API key
         self.telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
         self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
         self.interval = interval
