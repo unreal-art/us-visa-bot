@@ -1,35 +1,33 @@
 #!/usr/bin/env python3
 """
-Lightweight Visa Slot Monitor
-Simple script to monitor Indian US visa slots and send notifications
-Shows all locations in terminal, but only main consulates in Telegram
+GitHub Actions compatible slot monitor
+Runs for a limited time and logs results
 """
 import asyncio
 import httpx
 import json
 import logging
+import os
+import sys
 from datetime import datetime
 from typing import Dict, List, Optional
-import os
 from dotenv import load_dotenv
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 
 # Load environment variables
 load_dotenv()
 
-# Setup logging
+# Setup logging for GitHub Actions
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 
-console = Console()
-
-class LightweightSlotMonitor:
-    """Lightweight slot monitor using checkvisaslots.com API"""
+class GitHubSlotMonitor:
+    """GitHub Actions compatible slot monitor"""
     
     def __init__(self, interval: int = 30):
         self.api_url = 'https://app.checkvisaslots.com/slots/v3'
@@ -124,12 +122,14 @@ class LightweightSlotMonitor:
             
         return {'all': all_slots, 'main': main_slots}
 
-    def print_slots_table(self, slots: List[Dict]):
-        """Print slots in a nice table format"""
+    def print_slots_summary(self, slots: List[Dict]):
+        """Print slots summary for GitHub Actions"""
         if not slots:
-            console.print("⏳ No available slots found", style="yellow")
+            logger.info("⏳ No available slots found")
             return
             
+        logger.info(f"🎯 Found {len(slots)} locations with available slots:")
+        
         # Group slots by consulate
         consulate_groups = {}
         for slot in slots:
@@ -142,32 +142,11 @@ class LightweightSlotMonitor:
             else:
                 consulate_groups[base_name]['main'] = slot
         
-        # Create table
-        table = Table(title="🎯 Available Visa Slots", show_header=True, header_style="bold blue")
-        table.add_column("Consulate", style="cyan", width=15)
-        table.add_column("Main Consulate", style="green", width=20)
-        table.add_column("VAC", style="yellow", width=20)
-        
         for consulate, slots_group in consulate_groups.items():
             main_text = f"{slots_group['main']['slots']} slots" if slots_group['main'] else "No slots"
             vac_text = f"{slots_group['vac']['slots']} slots" if slots_group['vac'] else "No slots"
             
-            # Style based on availability
-            main_style = "green" if slots_group['main'] and slots_group['main']['slots'] > 0 else "red"
-            vac_style = "yellow" if slots_group['vac'] and slots_group['vac']['slots'] > 0 else "red"
-            
-            table.add_row(
-                consulate,
-                f"[{main_style}]{main_text}[/{main_style}]",
-                f"[{vac_style}]{vac_text}[/{vac_style}]"
-            )
-        
-        console.print(table)
-        
-        # Show timestamp
-        if slots:
-            latest_timestamp = max(slot['timestamp'] for slot in slots)
-            console.print(f"\n⏰ Last updated: {latest_timestamp}", style="dim")
+            logger.info(f"📍 {consulate}: Main={main_text}, VAC={vac_text}")
 
     async def send_telegram_notification(self, slots: List[Dict]):
         """Send notification via Telegram (only main consulates)"""
@@ -211,67 +190,60 @@ class LightweightSlotMonitor:
         
         return message
 
-    async def monitor_continuously(self):
-        """Monitor slots continuously"""
-        logger.info(f"🚀 Starting slot monitoring (interval: {self.interval}s)")
-        logger.info("Press Ctrl+C to stop")
+    async def run_monitoring(self, duration_minutes: int = 5):
+        """Run monitoring for specified duration"""
+        logger.info(f"🚀 Starting slot monitoring for {duration_minutes} minutes")
+        logger.info(f"⏰ Check interval: {self.interval} seconds")
         
-        last_notification_time = None
+        if self.telegram_bot_token and self.telegram_chat_id:
+            logger.info("📱 Telegram notifications enabled (main consulates only)")
+        else:
+            logger.info("⚠️ Telegram notifications disabled")
+        
+        start_time = datetime.now()
+        from datetime import timedelta
+        end_time = start_time + timedelta(minutes=duration_minutes)
+        check_count = 0
         
         try:
-            while True:
-                console.print(f"\n🔍 Checking slots at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="blue")
+            while datetime.now() < end_time:
+                check_count += 1
+                logger.info(f"\n🔍 Check #{check_count} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 
                 slots_data = await self.check_slots()
                 all_slots = slots_data['all']
                 main_slots = slots_data['main']
                 
-                # Show all slots in terminal table
-                self.print_slots_table(all_slots)
+                # Show all slots summary
+                self.print_slots_summary(all_slots)
                 
                 # Send Telegram notification only for main consulates (not VAC)
                 if main_slots:
-                    # Send notification (but not too frequently)
-                    now = datetime.now()
-                    if (last_notification_time is None or 
-                        (now - last_notification_time).seconds > 300):  # 5 minutes cooldown
-                        
-                        await self.send_telegram_notification(main_slots)
-                        last_notification_time = now
-                        console.print("📱 Telegram notification sent for main consulates only", style="green")
+                    await self.send_telegram_notification(main_slots)
+                    logger.info("📱 Telegram notification sent for main consulates only")
+                else:
+                    logger.info("📱 No main consulate slots - no Telegram notification")
                 
-                console.print(f"\n⏰ Next check in {self.interval} seconds...", style="dim")
-                await asyncio.sleep(self.interval)
+                # Wait for next check (unless it's the last check)
+                if datetime.now() < end_time:
+                    logger.info(f"⏰ Next check in {self.interval} seconds...")
+                    await asyncio.sleep(self.interval)
                 
-        except KeyboardInterrupt:
-            logger.info("🛑 Monitoring stopped by user")
         except Exception as e:
             logger.error(f"❌ Monitoring error: {e}")
+        
+        logger.info(f"✅ Monitoring completed after {check_count} checks")
 
 async def main():
-    """Main function"""
-    console.print(Panel.fit(
-        "🇮🇳 Indian US Visa Slot Monitor",
-        style="bold blue"
-    ))
-    
-    # Configurable interval (default: 30 seconds)
+    """Main function for GitHub Actions"""
+    # Get interval from environment (default: 30 seconds)
     interval = int(os.getenv('MONITOR_INTERVAL', '30'))
     
-    monitor = LightweightSlotMonitor(interval=interval)
+    # Create monitor
+    monitor = GitHubSlotMonitor(interval=interval)
     
-    # Check if Telegram is configured
-    if monitor.telegram_bot_token and monitor.telegram_chat_id:
-        console.print("✅ Telegram notifications enabled (main consulates only)", style="green")
-    else:
-        console.print("⚠️ Telegram notifications disabled (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)", style="yellow")
-    
-    console.print(f"📊 Terminal shows: All locations (main + VAC)", style="cyan")
-    console.print(f"📱 Telegram sends: All MAIN consulates (any consulate, NO VAC)", style="cyan")
-    console.print(f"⏰ Check interval: {interval} seconds", style="cyan")
-    console.print("🚀 Starting monitoring...", style="green")
-    
-    await monitor.monitor_continuously()
+    # Run monitoring for 5 minutes
+    await monitor.run_monitoring(duration_minutes=5)
 
 if __name__ == "__main__":
     asyncio.run(main())
