@@ -25,6 +25,7 @@ env:
   TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
   TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
   SLOT_API_KEY: ${{ secrets.SLOT_API_KEY}}
+  SLOT_API_KEYS: ${{secrets.SLOT_API_KEYS}}
 
 jobs:
   monitor-slots:

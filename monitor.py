@@ -33,27 +33,18 @@ class LightweightSlotMonitor:
     
     def __init__(self, interval: int = 30):
         self.api_url = 'https://app.checkvisaslots.com/slots/v3'
-        self.api_key = os.getenv('SLOT_API_KEY', 'HZK5KL')  # Default API key
+        
+        # Parse multiple API keys from environment variable
+        slot_api_keys_env = os.getenv('SLOT_API_KEYS', 'HZK5KL')  # Default fallback
+        self.api_keys = [key.strip() for key in slot_api_keys_env.split(',') if key.strip()]
+        self.current_key_index = 0
+        
         self.telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
         self.telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
         self.interval = interval
         
-        # Headers from your curl command
-        self.headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,ja;q=0.8,ar;q=0.7,es;q=0.6,zh-CN;q=0.5,zh;q=0.4,de;q=0.3',
-            'extversion': '4.6.5.1',
-            'origin': 'chrome-extension://beepaenfejnphdgnkmccjcfiieihhogl',
-            'priority': 'u=1, i',
-            'sec-ch-ua': '"Opera GX";v="120", "Not-A.Brand";v="8", "Chromium";v="135"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'cross-site',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 OPR/120.0.0.0',
-            'x-api-key': self.api_key
-        }
+        # Initialize headers with current API key
+        self._update_headers()
         
         # All consulate mapping
         self.all_consulate_mapping = {
@@ -70,6 +61,34 @@ class LightweightSlotMonitor:
             'DELHI': 'Delhi',
             'DELHI VAC': 'Delhi VAC'
         }
+
+    def _update_headers(self):
+        """Update headers with current API key"""
+        self.headers = {
+            'accept': '*/*',
+            'accept-language': 'en-US,en;q=0.9,ja;q=0.8,ar;q=0.7,es;q=0.6,zh-CN;q=0.5,zh;q=0.4,de;q=0.3',
+            'extversion': '4.6.5.1',
+            'origin': 'chrome-extension://beepaenfejnphdgnkmccjcfiieihhogl',
+            'priority': 'u=1, i',
+            'sec-ch-ua': '"Opera GX";v="120", "Not-A.Brand";v="8", "Chromium";v="135"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"macOS"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'cross-site',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 OPR/120.0.0.0',
+            'x-api-key': self.api_keys[self.current_key_index]
+        }
+
+    def _rotate_api_key(self):
+        """Rotate to the next API key"""
+        self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+        self._update_headers()
+        logger.info(f"🔄 Rotated to API key {self.current_key_index + 1}/{len(self.api_keys)}")
+
+    def _get_current_api_key(self) -> str:
+        """Get the current API key"""
+        return self.api_keys[self.current_key_index]
 
     async def check_slots(self) -> Dict[str, List[Dict]]:
         """Check for available slots using the API"""
@@ -221,6 +240,7 @@ class LightweightSlotMonitor:
         try:
             while True:
                 console.print(f"\n🔍 Checking slots at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", style="blue")
+                console.print(f"🔑 Using API key {self.current_key_index + 1}/{len(self.api_keys)}", style="dim")
                 
                 slots_data = await self.check_slots()
                 all_slots = slots_data['all']
@@ -239,6 +259,9 @@ class LightweightSlotMonitor:
                         await self.send_telegram_notification(main_slots)
                         last_notification_time = now
                         console.print("📱 Telegram notification sent for main consulates only", style="green")
+                
+                # Rotate API key for next interval
+                self._rotate_api_key()
                 
                 console.print(f"\n⏰ Next check in {self.interval} seconds...", style="dim")
                 await asyncio.sleep(self.interval)
@@ -265,6 +288,10 @@ async def main():
         console.print("✅ Telegram notifications enabled (main consulates only)", style="green")
     else:
         console.print("⚠️ Telegram notifications disabled (set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)", style="yellow")
+    
+    # Show API keys configuration
+    console.print(f"🔑 API Keys configured: {len(monitor.api_keys)} keys", style="cyan")
+    console.print(f"🔄 Key rotation: Every {interval} seconds", style="cyan")
     
     console.print(f"📊 Terminal shows: All locations (main + VAC)", style="cyan")
     console.print(f"📱 Telegram sends: All MAIN consulates (any consulate, NO VAC)", style="cyan")
