@@ -9,11 +9,31 @@ import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-import speech_recognition as sr
+# Optional speech recognition - may not work on Python 3.13+
+try:
+    import speech_recognition as sr
+    SPEECH_RECOGNITION_AVAILABLE = True
+except ImportError:
+    SPEECH_RECOGNITION_AVAILABLE = False
+    sr = None
 import requests
-from pydub import AudioSegment
 from playwright.async_api import Page, ElementHandle
-from playwright_recaptcha import recaptchav2
+
+# Optional reCAPTCHA solving - may not work on Python 3.13+
+try:
+    from playwright_recaptcha import recaptchav2
+    RECAPTCHA_SOLVER_AVAILABLE = True
+except ImportError:
+    RECAPTCHA_SOLVER_AVAILABLE = False
+    recaptchav2 = None
+
+# Optional audio processing - may not work on Python 3.13+
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+except ImportError:
+    PYDUB_AVAILABLE = False
+    AudioSegment = None
 
 class AudioCaptchaSolver:
     """Intelligent audio CAPTCHA solver with multiple fallback methods"""
@@ -21,7 +41,7 @@ class AudioCaptchaSolver:
     def __init__(self, use_2captcha: bool = False, api_key: str = ""):
         self.use_2captcha = use_2captcha
         self.api_key = api_key
-        self.recognizer = sr.Recognizer()
+        self.recognizer = sr.Recognizer() if SPEECH_RECOGNITION_AVAILABLE else None
         self.logger = logging.getLogger(__name__)
 
     async def solve_recaptcha_v2(self, page: Page) -> Optional[str]:
@@ -29,6 +49,10 @@ class AudioCaptchaSolver:
         Solve reCAPTCHA v2 using audio challenge
         Returns the g-recaptcha-response token
         """
+        if not RECAPTCHA_SOLVER_AVAILABLE:
+            self.logger.warning("reCAPTCHA solver not available on Python 3.13+. Consider using 2captcha service.")
+            return None
+            
         try:
             # Use playwright-recaptcha for automated solving
             async with recaptchav2.AsyncSolver(page) as solver:
@@ -97,21 +121,31 @@ class AudioCaptchaSolver:
                 temp_path = temp_file.name
 
             try:
-                # Convert to WAV format if needed
-                audio = AudioSegment.from_file(temp_path)
-                audio = audio.set_frame_rate(16000).set_channels(1)
-                wav_path = temp_path.replace('.wav', '_converted.wav')
-                audio.export(wav_path, format='wav')
+                if PYDUB_AVAILABLE and AudioSegment:
+                    # Convert to WAV format if needed
+                    audio = AudioSegment.from_file(temp_path)
+                    audio = audio.set_frame_rate(16000).set_channels(1)
+                    wav_path = temp_path.replace('.wav', '_converted.wav')
+                    audio.export(wav_path, format='wav')
 
-                # Transcribe using multiple methods
-                text = await self._transcribe_audio_multiple_methods(wav_path)
-                return text
+                    # Transcribe using multiple methods
+                    text = await self._transcribe_audio_multiple_methods(wav_path)
+                    
+                    # Cleanup converted file
+                    if os.path.exists(wav_path):
+                        os.unlink(wav_path)
+                    
+                    return text
+                else:
+                    # Use original file without conversion
+                    self.logger.warning("pydub not available, using original audio file")
+                    text = await self._transcribe_audio_multiple_methods(temp_path)
+                    return text
 
             finally:
                 # Cleanup temporary files
-                for path in [temp_path, wav_path]:
-                    if os.path.exists(path):
-                        os.unlink(path)
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
 
         except Exception as e:
             self.logger.error(f"❌ Audio processing failed: {e}")
@@ -134,29 +168,31 @@ class AudioCaptchaSolver:
     async def _transcribe_audio_multiple_methods(self, audio_path: str) -> Optional[str]:
         """Try multiple transcription methods for better accuracy"""
 
-        # Method 1: Google Speech Recognition (Free)
-        try:
-            with sr.AudioFile(audio_path) as source:
-                audio_data = self.recognizer.record(source)
-                text = self.recognizer.recognize_google(audio_data, language='en-US')
-                self.logger.info(f"Google Speech Recognition result: {text}")
-                if text.strip():
-                    return text.strip().lower()
-        except Exception as e:
-            self.logger.warning(f"Google Speech Recognition failed: {e}")
-
-        # Method 2: Wit.ai (if API key available)
-        try:
-            wit_api_key = os.getenv('WIT_API_KEY')
-            if wit_api_key:
+        # Method 1: Google Speech Recognition (Free) - if available
+        if SPEECH_RECOGNITION_AVAILABLE and self.recognizer:
+            try:
                 with sr.AudioFile(audio_path) as source:
                     audio_data = self.recognizer.record(source)
-                    text = self.recognizer.recognize_wit(audio_data, key=wit_api_key)
-                    self.logger.info(f"Wit.ai result: {text}")
+                    text = self.recognizer.recognize_google(audio_data, language='en-US')
+                    self.logger.info(f"Google Speech Recognition result: {text}")
                     if text.strip():
                         return text.strip().lower()
-        except Exception as e:
-            self.logger.warning(f"Wit.ai recognition failed: {e}")
+            except Exception as e:
+                self.logger.warning(f"Google Speech Recognition failed: {e}")
+
+        # Method 2: Wit.ai (if API key available and speech_recognition works)
+        if SPEECH_RECOGNITION_AVAILABLE and self.recognizer:
+            try:
+                wit_api_key = os.getenv('WIT_API_KEY')
+                if wit_api_key:
+                    with sr.AudioFile(audio_path) as source:
+                        audio_data = self.recognizer.record(source)
+                        text = self.recognizer.recognize_wit(audio_data, key=wit_api_key)
+                        self.logger.info(f"Wit.ai result: {text}")
+                        if text.strip():
+                            return text.strip().lower()
+            except Exception as e:
+                self.logger.warning(f"Wit.ai recognition failed: {e}")
 
         # Method 3: 2captcha service (if enabled and API key available)
         if self.use_2captcha and self.api_key:
@@ -166,6 +202,10 @@ class AudioCaptchaSolver:
                     return result
             except Exception as e:
                 self.logger.warning(f"2captcha service failed: {e}")
+
+        # Method 4: Fallback - log warning about speech recognition
+        if not SPEECH_RECOGNITION_AVAILABLE:
+            self.logger.warning("Speech recognition not available on Python 3.13+. Consider using 2captcha service.")
 
         return None
 

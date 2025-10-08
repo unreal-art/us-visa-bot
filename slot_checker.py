@@ -239,20 +239,15 @@ class SlotNotifier:
         if not slots:
             return "No slots available"
 
-        message = f"🎯 VISA SLOTS AVAILABLE! ({len(slots)} found)
-
-"
+        message = f"🎯 VISA SLOTS AVAILABLE! ({len(slots)} found)\n\n"
 
         for i, slot in enumerate(slots[:5], 1):  # Show first 5 slots
-            message += f"{i}. {slot.date.strftime('%B %d, %Y')} - {slot.consulate}
-"
+            message += f"{i}. {slot.date.strftime('%B %d, %Y')} - {slot.consulate}\n"
 
         if len(slots) > 5:
-            message += f"
-... and {len(slots) - 5} more slots!"
+            message += f"\n... and {len(slots) - 5} more slots!"
 
-        message += "
-⚡ Book now using the automation system!"
+        message += "\n⚡ Book now using the automation system!"
         return message
 
     async def _send_telegram_message(self, message: str):
