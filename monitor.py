@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class LightweightSlotMonitor:
+class SlotMonitor:
     """Lightweight slot monitor using checkvisaslots.com API"""
     
     def __init__(self, interval: int = 30):
@@ -206,7 +206,7 @@ async def main():
     # Configurable interval (default: 30 seconds)
     interval = int(os.getenv('MONITOR_INTERVAL', '30'))
     
-    monitor = LightweightSlotMonitor(interval=interval)
+    monitor = SlotMonitor(interval=interval)
     
     # Check if Telegram is configured
     if monitor.telegram_bot_token and monitor.telegram_chat_id:
