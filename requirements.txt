@@ -1,6 +1,6 @@
 # Core automation and browser control
-playwright>=1.40.0
-playwright-recaptcha>=0.3.0
+selenium>=4.15.0
+webdriver-manager>=4.0.0
 
 # HTTP requests and async support
 requests>=2.31.0

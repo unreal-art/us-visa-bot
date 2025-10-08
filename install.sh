@@ -144,8 +144,8 @@ setup_venv() {
 install_dependencies() {
     print_status "Installing Python dependencies..."
 
-    uv pip install playwright>=1.40.0
-    uv pip install playwright-recaptcha>=0.3.0
+    uv pip install selenium>=4.15.0
+    uv pip install webdriver-manager>=4.0.0
     uv pip install requests>=2.31.0
     uv pip install python-dotenv>=1.0.0
     uv pip install pydub>=0.25.1
@@ -163,11 +163,33 @@ install_dependencies() {
 
 # Install Playwright browsers
 install_browsers() {
-    print_status "Installing Playwright browsers..."
-
-    .venv/bin/playwright install chromium
-
-    print_success "Playwright browsers installed"
+    print_status "Checking Chrome browser installation..."
+    
+    # Install Chrome browser (if not already installed)
+    if ! command -v google-chrome &> /dev/null && ! command -v chromium-browser &> /dev/null; then
+        print_status "Installing Chrome browser..."
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            # Ubuntu/Debian
+            if command -v apt-get &> /dev/null; then
+                wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+                echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+                sudo apt-get update
+                sudo apt-get install -y google-chrome-stable
+            # CentOS/RHEL
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+            fi
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            if ! command -v brew &> /dev/null; then
+                print_error "Please install Homebrew first: https://brew.sh/"
+                exit 1
+            fi
+            brew install --cask google-chrome
+        fi
+    else
+        print_success "Chrome browser already installed"
+    fi
 }
 
 # Create configuration files if they don't exist
