@@ -20,8 +20,11 @@ from rich.panel import Panel
 load_dotenv()
 
 # Setup logging
+debug_mode = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+log_level = logging.DEBUG if debug_mode else logging.INFO
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -93,6 +96,10 @@ class LightweightSlotMonitor:
     async def check_slots(self) -> Dict[str, List[Dict]]:
         """Check for available slots using the API"""
         try:
+            # Debug: Log current API key and headers
+            logger.debug(f"Using API key: {self._get_current_api_key()}")
+            logger.debug(f"Request headers: {self.headers}")
+            
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     self.api_url,
@@ -100,11 +107,21 @@ class LightweightSlotMonitor:
                     timeout=30.0
                 )
                 
+                # Debug: Log response details
+                logger.debug(f"Response status: {response.status_code}")
+                logger.debug(f"Response headers: {dict(response.headers)}")
+                
                 if response.status_code == 200:
                     data = response.json()
                     return self.parse_slots(data)
                 else:
                     logger.error(f"API request failed: {response.status_code}")
+                    # Log response body for debugging
+                    try:
+                        error_body = response.text
+                        logger.error(f"Error response body: {error_body}")
+                    except:
+                        logger.error("Could not read error response body")
                     return {'all': [], 'main': []}
                     
         except Exception as e:
@@ -292,6 +309,13 @@ async def main():
     # Show API keys configuration
     console.print(f"🔑 API Keys configured: {len(monitor.api_keys)} keys", style="cyan")
     console.print(f"🔄 Key rotation: Every {interval} seconds", style="cyan")
+    
+    # Show environment info
+    is_ci = os.getenv('CI', 'false').lower() == 'true'
+    if is_ci:
+        console.print("🏗️ Running in CI environment", style="yellow")
+    else:
+        console.print("💻 Running in local environment", style="green")
     
     console.print(f"📊 Terminal shows: All locations (main + VAC)", style="cyan")
     console.print(f"📱 Telegram sends: All MAIN consulates (any consulate, NO VAC)", style="cyan")
