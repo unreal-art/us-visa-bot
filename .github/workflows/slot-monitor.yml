@@ -43,10 +43,6 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install dependencies with uv
-        run: |
-          uv pip install httpx python-dotenv rich
-
       - name: Set environment variables
         run: |
           echo "MONITOR_INTERVAL=$MONITOR_INTERVAL" >> $GITHUB_ENV
