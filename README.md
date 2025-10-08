@@ -78,24 +78,15 @@ python main.py --setup
 
 2. **Or manually create `.env` file:**
 
-```env
-# Visa Portal Credentials
-VISA_USERNAME=your_email@example.com
-VISA_PASSWORD=your_password
+```bash
+# Copy the example file
+cp .env.example .env
 
-# Application Details
-APPLICATION_ID=123456789
-COUNTRY_CODE=in
-CONSULAR_ID=122
-
-# Optional: Notifications
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
-
-# Optional: 2Captcha Service
-USE_2CAPTCHA=false
-CAPTCHA_API_KEY=your_api_key
+# Edit with your credentials
+nano .env  # or use your preferred editor
 ```
+
+The `.env.example` file contains all available configuration options with detailed documentation.
 
 3. **Configure security questions in `security_questions.json`:**
 
@@ -156,6 +147,8 @@ python main.py --headless --consulate-id 126
 
 ### Environment Variables
 
+The `.env.example` file contains comprehensive documentation of all available environment variables. Here are the key variables:
+
 | Variable             | Description                           | Required |
 | -------------------- | ------------------------------------- | -------- |
 | `VISA_USERNAME`      | Your visa portal email                | Yes      |
@@ -170,6 +163,13 @@ python main.py --headless --consulate-id 126
 | `TELEGRAM_CHAT_ID`   | Telegram chat ID                      | No       |
 | `USE_2CAPTCHA`       | Enable 2captcha service               | No       |
 | `CAPTCHA_API_KEY`    | 2captcha API key                      | No       |
+
+**📋 Complete Configuration Reference:**
+
+```bash
+# View all available options with documentation
+cat .env.example
+```
 
 ### Audio CAPTCHA Methods
 
@@ -292,6 +292,7 @@ visa-slot-automation/
 ├── utils.py                   # Utility functions and helper classes
 ├── test_automation.py         # Comprehensive test suite
 ├── security_questions.json    # Security question answers template
+├── .env.example              # Environment variables template (copy to .env)
 ├── pyproject.toml            # uv project configuration (Python 3.13)
 ├── requirements.txt          # Package dependencies
 ├── install.sh                # Unix/Linux/macOS installer script
