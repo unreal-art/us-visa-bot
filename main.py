@@ -23,11 +23,11 @@ console = Console()
 def display_banner():
     """Display application banner"""
     banner = Text()
-    banner.append("🎯 VISA SLOT BOOKING AUTOMATION 🎯", style="bold blue")
+    banner.append("🇮🇳 INDIAN US VISA SLOT BOOKING AUTOMATION 🇮🇳", style="bold blue")
 
     panel = Panel(
         banner,
-        title="Advanced Automation System",
+        title="Advanced Indian Visa Automation System",
         border_style="blue",
         padding=(1, 2)
     )
@@ -41,8 +41,9 @@ def display_config_info(config: VisaConfig):
     table.add_column("Setting", style="cyan")
     table.add_column("Value", style="green")
 
-    table.add_row("Country", config.country_code.upper())
+    table.add_row("Country", "India (US Visa)")
     table.add_row("Consulate ID", config.consular_id)
+    table.add_row("Portal", "usvisascheduling.com")
     table.add_row("Username", config.username[:3] + "*" * (len(config.username) - 3))
     table.add_row("Retry Timeout", f"{config.retry_timeout}s")
     table.add_row("Max Retries", str(config.max_retries))
@@ -88,7 +89,7 @@ def setup_environment():
 
 def create_sample_env_file():
     """Create a sample .env file"""
-    env_content = '''# Visa Portal Credentials
+    env_content = '''# Indian US Visa Portal Credentials (usvisascheduling.com)
 VISA_USERNAME=your_email@example.com
 VISA_PASSWORD=your_password
 
@@ -127,7 +128,7 @@ async def run_interactive_setup():
     password = console.input("🔐 Enter your password: ", password=True)
     app_id = console.input("📋 Enter your application ID: ")
 
-    console.print("\n🏛️  Select your consulate:")
+    console.print("\n🏛️  Select your Indian consulate:")
     console.print("122 - Chennai")
     console.print("123 - Hyderabad") 
     console.print("124 - Kolkata")
@@ -156,7 +157,7 @@ HEADLESS=false
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description="Visa Slot Booking Automation System"
+        description="Indian US Visa Slot Booking Automation System"
     )
 
     parser.add_argument('--setup', action='store_true', 

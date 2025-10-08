@@ -1,17 +1,18 @@
-# 🎯 Visa Slot Booking Automation System
+# 🇮🇳 Indian US Visa Slot Booking Automation System
 
-An intelligent, automated system for booking US visa appointments in India using Python 3.13, uv package manager, Playwright browser automation, and advanced audio CAPTCHA solving.
+An intelligent, automated system for booking US visa appointments in India using Python 3.13, uv package manager, Playwright browser automation, and advanced audio CAPTCHA solving. This system works specifically with the official Indian visa portal at **usvisascheduling.com**.
 
 ## ✨ Features
 
-- **🤖 Intelligent Automation**: Fully automated visa slot booking with advanced anti-detection measures
-- **🔊 Audio CAPTCHA Solving**: Advanced audio CAPTCHA recognition using multiple AI services
-- **📊 Real-time Monitoring**: Integration with checkvisaslots.com API for real-time slot availability
+- **🇮🇳 Indian Portal Support**: Specifically designed for usvisascheduling.com portal
+- **🏛️ Indian Consulates**: Support for all major Indian consulates (Chennai, Mumbai, Delhi, Hyderabad, Kolkata)
+- **📊 Real-time Monitoring**: Integration with checkvisaslots.com API v3 for real-time slot availability
 - **🔔 Smart Notifications**: Telegram notifications when slots become available
 - **🛡️ Anti-Bot Protection**: Stealth browser settings and human-like behavior simulation
 - **⚙️ Configurable**: Flexible configuration for different consulates and preferences
 - **📝 Security Questions**: Automated handling of security questions during booking
 - **💾 Backup & Logging**: Comprehensive logging and backup systems
+- **🎯 Live API Integration**: Direct integration with checkvisaslots.com API v3 endpoint
 
 ## 🚀 Quick Start
 
@@ -135,13 +136,13 @@ python main.py --headless --consulate-id 126
 
 ## 🏛️ Indian Consulate IDs
 
-| Consulate | ID  |
-| --------- | --- |
-| Chennai   | 122 |
-| Hyderabad | 123 |
-| Kolkata   | 124 |
-| Mumbai    | 125 |
-| New Delhi | 126 |
+| Consulate | ID  | Location    |
+| --------- | --- | ----------- |
+| Chennai   | 122 | Tamil Nadu  |
+| Hyderabad | 123 | Telangana   |
+| Kolkata   | 124 | West Bengal |
+| Mumbai    | 125 | Maharashtra |
+| New Delhi | 126 | Delhi       |
 
 ## 🔧 Configuration Details
 
@@ -151,11 +152,11 @@ The `.env.example` file contains comprehensive documentation of all available en
 
 | Variable             | Description                           | Required |
 | -------------------- | ------------------------------------- | -------- |
-| `VISA_USERNAME`      | Your visa portal email                | Yes      |
-| `VISA_PASSWORD`      | Your visa portal password             | Yes      |
+| `VISA_USERNAME`      | Your usvisascheduling.com email       | Yes      |
+| `VISA_PASSWORD`      | Your usvisascheduling.com password    | Yes      |
 | `APPLICATION_ID`     | Your visa application ID              | Yes      |
 | `COUNTRY_CODE`       | Country code (default: in)            | No       |
-| `CONSULAR_ID`        | Consulate ID                          | No       |
+| `CONSULAR_ID`        | Indian consulate ID                   | No       |
 | `RETRY_TIMEOUT`      | Seconds between checks (default: 180) | No       |
 | `MAX_RETRIES`        | Maximum retry attempts (default: 50)  | No       |
 | `HEADLESS`           | Run browser in headless mode          | No       |
@@ -170,6 +171,16 @@ The `.env.example` file contains comprehensive documentation of all available en
 # View all available options with documentation
 cat .env.example
 ```
+
+### Slot Monitoring API
+
+The system uses the official checkvisaslots.com API v3 for real-time slot monitoring:
+
+- **API Endpoint**: `https://app.checkvisaslots.com/slots/v3`
+- **Authentication**: Uses official API key (HZK5KL)
+- **Real-time Data**: Live slot availability across all Indian consulates
+- **Multi-consulate Support**: Monitors Chennai, Mumbai, Delhi, Hyderabad, and Kolkata
+- **Automatic Parsing**: Intelligent parsing of API responses for slot information
 
 ### Audio CAPTCHA Methods
 
@@ -220,10 +231,17 @@ The system provides comprehensive logging:
 
 ## 🚨 Important Notes
 
+### Indian Visa Portal Specific Information
+
+- **Official Portal**: This system works with the official Indian visa portal at [usvisascheduling.com](https://www.usvisascheduling.com/)
+- **Portal Transition**: The US Embassy in India transitioned to this new platform in 2023
+- **Support Contact**: For technical issues, contact support-india@usvisascheduling.com
+- **Portal Updates**: The portal may undergo updates that could affect automation
+
 ### Legal and Ethical Considerations
 
 - ⚠️ **Use Responsibly**: This tool should only be used for legitimate visa applications
-- ⚠️ **Terms of Service**: Ensure compliance with visa portal terms of service
+- ⚠️ **Terms of Service**: Ensure compliance with usvisascheduling.com terms of service
 - ⚠️ **Rate Limits**: The system includes built-in rate limiting to be respectful
 - ⚠️ **No Guarantees**: This tool does not guarantee successful bookings
 
@@ -341,4 +359,6 @@ The authors are not responsible for any misuse or consequences of using this sof
 
 ---
 
-**⚡ Built with Python 3.13, uv, and intelligent automation**
+**🇮🇳 Built specifically for Indian US visa scheduling with Python 3.13, uv, and intelligent automation**
+
+**🌐 Official Portal**: [usvisascheduling.com](https://www.usvisascheduling.com/)

@@ -36,7 +36,7 @@ class VisaConfig:
 
     # Visa portal URLs
     visa_urls = {
-        "in": "https://ais.usvisa-info.com/en-in/niv/",
+        "in": "https://www.usvisascheduling.com/",
         "ca": "https://ais.usvisa-info.com/en-ca/niv/",
         "us": "https://ustraveldocs.com/",
     }
@@ -45,7 +45,7 @@ class VisaConfig:
         """Get base URL for the country"""
         return self.visa_urls.get(self.country_code, self.visa_urls["in"])
 
-# Indian consulate IDs
+# Indian consulate IDs for US visa scheduling
 INDIAN_CONSULATES = {
     "122": "Chennai",
     "123": "Hyderabad", 

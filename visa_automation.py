@@ -121,19 +121,19 @@ class VisaAutomationBot:
         self.logger.info("✅ Browser initialized successfully")
 
     async def login_to_portal(self) -> bool:
-        """Login to the visa appointment portal"""
+        """Login to the Indian visa appointment portal (usvisascheduling.com)"""
         try:
-            self.logger.info("🔑 Attempting to login to visa portal...")
+            self.logger.info("🔑 Attempting to login to Indian visa portal...")
 
             base_url = self.config.get_base_url()
-            login_url = f"{base_url}users/sign_in"
+            login_url = f"{base_url}login"
 
             await self.page.goto(login_url, wait_until='networkidle')
             await self.page.wait_for_timeout(2000)
 
-            # Fill login form
-            await self.page.fill('input[name="user[email]"], input[type="email"]', self.config.username)
-            await self.page.fill('input[name="user[password]"], input[type="password"]', self.config.password)
+            # Fill login form - usvisascheduling.com uses different selectors
+            await self.page.fill('input[name="email"], input[type="email"], #email', self.config.username)
+            await self.page.fill('input[name="password"], input[type="password"], #password', self.config.password)
 
             # Handle CAPTCHA if present
             captcha_solved = await self.captcha_handler.handle_captcha(self.page)
@@ -141,7 +141,7 @@ class VisaAutomationBot:
                 self.logger.warning("⚠️ CAPTCHA detected but not solved")
 
             # Submit login form
-            await self.page.click('input[type="submit"], button[type="submit"]')
+            await self.page.click('input[type="submit"], button[type="submit"], .login-button')
             await self.page.wait_for_timeout(3000)
 
             # Check if login was successful
@@ -183,19 +183,19 @@ class VisaAutomationBot:
         return False
 
     async def navigate_to_appointment_page(self) -> bool:
-        """Navigate to the appointment scheduling page"""
+        """Navigate to the appointment scheduling page for Indian visa portal"""
         try:
             self.logger.info("📅 Navigating to appointment page...")
 
-            # Navigate to schedule appointment page
+            # Navigate to schedule appointment page - usvisascheduling.com structure
             base_url = self.config.get_base_url()
-            appointment_url = f"{base_url}schedule/{self.config.application_id}/appointment"
+            appointment_url = f"{base_url}appointment/schedule"
 
             await self.page.goto(appointment_url, wait_until='networkidle')
             await self.page.wait_for_timeout(2000)
 
             # Check if we're on the right page
-            if 'appointment' in self.page.url.lower():
+            if 'appointment' in self.page.url.lower() or 'schedule' in self.page.url.lower():
                 self.logger.info("✅ Successfully navigated to appointment page")
                 return True
             else:
@@ -207,18 +207,43 @@ class VisaAutomationBot:
             return False
 
     async def select_consulate_and_date(self, target_slot: VisaSlot) -> bool:
-        """Select consulate and date for appointment"""
+        """Select consulate and date for appointment on Indian visa portal"""
         try:
             self.logger.info(f"🏛️ Selecting consulate and date: {target_slot}")
 
-            # Select consulate
-            consulate_dropdown = await self.page.query_selector('select[name*="consulate"], #appointments_consulate_appointment_facility_id')
+            # Select consulate - usvisascheduling.com specific selectors
+            consulate_selectors = [
+                'select[name*="consulate"]',
+                'select[name*="facility"]', 
+                '#consulate-select',
+                '.consulate-dropdown',
+                'select[id*="consulate"]'
+            ]
+            
+            consulate_dropdown = None
+            for selector in consulate_selectors:
+                consulate_dropdown = await self.page.query_selector(selector)
+                if consulate_dropdown:
+                    break
+                    
             if consulate_dropdown:
                 await consulate_dropdown.select_option(value=target_slot.consulate_id)
                 await self.page.wait_for_timeout(2000)
 
-            # Select date
-            date_element = await self.page.query_selector(f'a[data-date="{target_slot.date.strftime("%Y-%m-%d")}"]')
+            # Select date - usvisascheduling.com calendar structure
+            date_selectors = [
+                f'a[data-date="{target_slot.date.strftime("%Y-%m-%d")}"]',
+                f'button[data-date="{target_slot.date.strftime("%Y-%m-%d")}"]',
+                f'.calendar-day[data-date="{target_slot.date.strftime("%Y-%m-%d")}"]',
+                f'td[data-date="{target_slot.date.strftime("%Y-%m-%d")}"]'
+            ]
+            
+            date_element = None
+            for selector in date_selectors:
+                date_element = await self.page.query_selector(selector)
+                if date_element:
+                    break
+                    
             if date_element:
                 await date_element.click()
                 await self.page.wait_for_timeout(1000)
@@ -227,7 +252,20 @@ class VisaAutomationBot:
                 await self._select_date_alternative(target_slot.date)
 
             # Select time slot (usually the first available)
-            time_slots = await self.page.query_selector_all('.time-slot, a[data-time]')
+            time_slot_selectors = [
+                '.time-slot',
+                'a[data-time]',
+                '.appointment-time',
+                '.time-button',
+                'button[data-time]'
+            ]
+            
+            time_slots = []
+            for selector in time_slot_selectors:
+                time_slots = await self.page.query_selector_all(selector)
+                if time_slots:
+                    break
+                    
             if time_slots:
                 await time_slots[0].click()
                 await self.page.wait_for_timeout(1000)

@@ -31,9 +31,11 @@ class SlotChecker:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self.base_urls = {
-            'checkvisaslots': 'https://checkvisaslots.com',
-            'api_endpoint': 'https://checkvisaslots.com/api/slots'
+            'checkvisaslots': 'https://app.checkvisaslots.com',
+            'api_endpoint': 'https://app.checkvisaslots.com/slots/v3',
+            'indian_portal': 'https://www.usvisascheduling.com'
         }
+        self.api_key = 'HZK5KL'  # API key for checkvisaslots.com
 
     async def check_available_slots(self, target_date: Optional[datetime] = None) -> List[VisaSlot]:
         """
@@ -55,40 +57,59 @@ class SlotChecker:
 
     async def _check_api_slots(self, target_date: Optional[datetime] = None) -> List[VisaSlot]:
         """
-        Check slots using checkvisaslots.com API
+        Check slots using checkvisaslots.com API v3 for Indian visa appointments
         """
         slots = []
         try:
             async with httpx.AsyncClient() as client:
-                # Construct API request
+                # Construct API request for Indian visa slots using the actual API
                 params = {
-                    'country': self.config.country_code,
+                    'country': 'india',
                     'consulate': self.config.consular_id,
+                    'visa_type': 'us_visa',  # US visa appointments in India
                 }
 
                 if target_date:
                     params['date_from'] = target_date.strftime('%Y-%m-%d')
 
-                # Make API request with proper headers
+                # Use the exact headers from the working curl command
                 headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'application/json',
-                    'Referer': 'https://checkvisaslots.com'
+                    'accept': '*/*',
+                    'accept-language': 'en-US,en;q=0.9,ja;q=0.8,ar;q=0.7,es;q=0.6,zh-CN;q=0.5,zh;q=0.4,de;q=0.3',
+                    'extversion': '4.6.5.1',
+                    'origin': 'chrome-extension://beepaenfejnphdgnkmccjcfiieihhogl',
+                    'priority': 'u=1, i',
+                    'sec-ch-ua': '"Opera GX";v="120", "Not-A.Brand";v="8", "Chromium";v="135"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"macOS"',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'cross-site',
+                    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 OPR/120.0.0.0',
+                    'x-api-key': self.api_key
                 }
 
-                response = await client.get(
-                    f"{self.base_urls['checkvisaslots']}/api/availability",
-                    params=params,
-                    headers=headers,
-                    timeout=30.0
-                )
+                # Use the actual API endpoint
+                endpoint = self.base_urls['api_endpoint']
+                
+                try:
+                    response = await client.get(
+                        endpoint,
+                        params=params,
+                        headers=headers,
+                        timeout=30.0
+                    )
 
-                if response.status_code == 200:
-                    data = response.json()
-                    slots = self._parse_api_response(data)
-                    self.logger.info(f"📊 Found {len(slots)} slots via API")
-                else:
-                    self.logger.warning(f"API request failed with status {response.status_code}")
+                    if response.status_code == 200:
+                        data = response.json()
+                        slots = self._parse_api_response(data)
+                        self.logger.info(f"📊 Found {len(slots)} slots via checkvisaslots.com API v3")
+                    else:
+                        self.logger.warning(f"API request failed with status {response.status_code}")
+                        self.logger.debug(f"Response: {response.text}")
+
+                except Exception as e:
+                    self.logger.error(f"API endpoint {endpoint} failed: {e}")
 
         except Exception as e:
             self.logger.error(f"❌ API slot check failed: {e}")
@@ -96,35 +117,191 @@ class SlotChecker:
         return slots
 
     def _parse_api_response(self, data: Dict) -> List[VisaSlot]:
-        """Parse API response into VisaSlot objects"""
+        """Parse checkvisaslots.com API v3 response into VisaSlot objects"""
         slots = []
 
         try:
-            # Parse different API response formats
-            if 'available_dates' in data:
-                for date_info in data['available_dates']:
-                    slot_date = datetime.strptime(date_info['date'], '%Y-%m-%d')
-                    slots.append(VisaSlot(
-                        date=slot_date,
-                        consulate=date_info.get('consulate', 'Unknown'),
-                        consulate_id=date_info.get('consulate_id', self.config.consular_id),
-                        available=True
-                    ))
-
-            elif 'slots' in data:
-                for slot_info in data['slots']:
-                    slot_date = datetime.strptime(slot_info['date'], '%Y-%m-%d')
-                    slots.append(VisaSlot(
-                        date=slot_date,
-                        consulate=slot_info.get('location', 'Unknown'),
-                        consulate_id=str(slot_info.get('id', self.config.consular_id)),
-                        available=slot_info.get('available', False)
-                    ))
+            # Parse checkvisaslots.com API v3 response format
+            if isinstance(data, dict) and 'slotDetails' in data:
+                # This is the actual API v3 response format
+                slot_details = data['slotDetails']
+                
+                for slot_info in slot_details:
+                    slot = self._parse_slot_details(slot_info)
+                    if slot:
+                        slots.append(slot)
+                        
+            elif isinstance(data, list):
+                # Direct list of slots
+                for slot_info in data:
+                    slot = self._parse_slot_info(slot_info)
+                    if slot:
+                        slots.append(slot)
+                        
+            elif isinstance(data, dict):
+                # Check for different response structures
+                if 'slots' in data:
+                    # Nested slots array
+                    for slot_info in data['slots']:
+                        slot = self._parse_slot_info(slot_info)
+                        if slot:
+                            slots.append(slot)
+                            
+                elif 'data' in data:
+                    # Data wrapper
+                    for slot_info in data['data']:
+                        slot = self._parse_slot_info(slot_info)
+                        if slot:
+                            slots.append(slot)
+                            
+                elif 'available_dates' in data:
+                    # Available dates format
+                    for date_info in data['available_dates']:
+                        slot = self._parse_date_info(date_info)
+                        if slot:
+                            slots.append(slot)
+                            
+                elif 'appointments' in data:
+                    # Appointments format
+                    for appt_info in data['appointments']:
+                        slot = self._parse_appointment_info(appt_info)
+                        if slot:
+                            slots.append(slot)
 
         except Exception as e:
             self.logger.error(f"Error parsing API response: {e}")
+            self.logger.debug(f"Raw response data: {data}")
 
         return slots
+
+    def _parse_slot_details(self, slot_info: Dict) -> Optional[VisaSlot]:
+        """Parse slotDetails from checkvisaslots.com API v3"""
+        try:
+            # Extract location info
+            location = slot_info.get('visa_location', 'Unknown')
+            slots_count = slot_info.get('slots', 0)
+            
+            # Map location names to consulate IDs
+            location_mapping = {
+                'CHENNAI': '122',
+                'CHENNAI VAC': '122',
+                'HYDERABAD': '123', 
+                'HYDERABAD VAC': '123',
+                'KOLKATA': '124',
+                'KOLKATA VAC': '124',
+                'MUMBAI': '125',
+                'MUMBAI VAC': '125',
+                'NEW DELHI': '126',
+                'NEW DELHI VAC': '126',
+                'DELHI': '126',
+                'DELHI VAC': '126'
+            }
+            
+            consulate_id = location_mapping.get(location.upper(), self.config.consular_id)
+            
+            # Clean up location name
+            consulate_name = location.replace(' VAC', '').title()
+            
+            # Create a slot for today (since API doesn't provide specific dates)
+            # In a real implementation, you might want to check multiple days
+            from datetime import datetime, timedelta
+            today = datetime.now().date()
+            
+            # Create slots for the next 30 days if available
+            available_slots = []
+            for i in range(30):
+                slot_date = today + timedelta(days=i)
+                
+                slot = VisaSlot(
+                    date=datetime.combine(slot_date, datetime.min.time()),
+                    consulate=consulate_name,
+                    consulate_id=consulate_id,
+                    available=slots_count > 0,
+                    slot_type='regular'
+                )
+                available_slots.append(slot)
+                
+                # Only create one slot per location if slots are available
+                if slots_count > 0:
+                    break
+            
+            # Return the first available slot or the first slot if none available
+            return available_slots[0] if available_slots else None
+            
+        except Exception as e:
+            self.logger.warning(f"Error parsing slot details: {e}")
+            return None
+
+    def _parse_slot_info(self, slot_info: Dict) -> Optional[VisaSlot]:
+        """Parse individual slot information"""
+        try:
+            # Extract date
+            date_str = slot_info.get('date') or slot_info.get('appointment_date') or slot_info.get('available_date')
+            if not date_str:
+                return None
+                
+            slot_date = datetime.strptime(date_str, '%Y-%m-%d')
+            
+            # Extract consulate info
+            consulate_name = slot_info.get('consulate', slot_info.get('location', slot_info.get('facility', 'Unknown')))
+            consulate_id = slot_info.get('consulate_id', slot_info.get('facility_id', self.config.consular_id))
+            
+            # Check availability
+            available = slot_info.get('available', slot_info.get('is_available', True))
+            
+            return VisaSlot(
+                date=slot_date,
+                consulate=consulate_name,
+                consulate_id=str(consulate_id),
+                available=available,
+                slot_type=slot_info.get('type', 'regular')
+            )
+            
+        except Exception as e:
+            self.logger.warning(f"Error parsing slot info: {e}")
+            return None
+
+    def _parse_date_info(self, date_info: Dict) -> Optional[VisaSlot]:
+        """Parse date-based slot information"""
+        try:
+            date_str = date_info.get('date')
+            if not date_str:
+                return None
+                
+            slot_date = datetime.strptime(date_str, '%Y-%m-%d')
+            
+            return VisaSlot(
+                date=slot_date,
+                consulate=date_info.get('consulate', 'Unknown'),
+                consulate_id=str(date_info.get('consulate_id', self.config.consular_id)),
+                available=True,
+                slot_type='regular'
+            )
+            
+        except Exception as e:
+            self.logger.warning(f"Error parsing date info: {e}")
+            return None
+
+    def _parse_appointment_info(self, appt_info: Dict) -> Optional[VisaSlot]:
+        """Parse appointment-based slot information"""
+        try:
+            date_str = appt_info.get('date') or appt_info.get('appointment_date')
+            if not date_str:
+                return None
+                
+            slot_date = datetime.strptime(date_str, '%Y-%m-%d')
+            
+            return VisaSlot(
+                date=slot_date,
+                consulate=appt_info.get('consulate', 'Unknown'),
+                consulate_id=str(appt_info.get('consulate_id', self.config.consular_id)),
+                available=appt_info.get('available', True),
+                slot_type=appt_info.get('appointment_type', 'regular')
+            )
+            
+        except Exception as e:
+            self.logger.warning(f"Error parsing appointment info: {e}")
+            return None
 
     async def _check_portal_directly(self, target_date: Optional[datetime] = None) -> List[VisaSlot]:
         """
