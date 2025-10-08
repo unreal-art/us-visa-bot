@@ -12,6 +12,11 @@ on:
         default: "30"
         type: string
 
+env:
+  MONITOR_INTERVAL: ${{ github.event.inputs.interval || '30' }}
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
 jobs:
   monitor-slots:
     runs-on: ubuntu-latest
@@ -31,30 +36,26 @@ jobs:
           pip install httpx python-dotenv rich
 
       - name: Set environment variables
-        env:
-          MONITOR_INTERVAL: ${{ github.event.inputs.interval || '30' }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           echo "MONITOR_INTERVAL=$MONITOR_INTERVAL" >> $GITHUB_ENV
           echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> $GITHUB_ENV
           echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> $GITHUB_ENV
 
-    - name: Run slot monitor
-      run: |
-        echo "🚀 Starting visa slot monitoring..."
-        echo "⏰ Interval: $MONITOR_INTERVAL seconds"
-        echo "📱 Telegram: $([ -n "$TELEGRAM_BOT_TOKEN" ] && echo "Enabled" || echo "Disabled")"
-        
-        # Run the GitHub Actions compatible monitor
-        python github_monitor.py
-        
-    - name: Upload logs
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: monitor-logs-${{ github.run_number }}
-        path: |
-          *.log
-          visa_automation.log
-        retention-days: 7
+      - name: Run slot monitor
+        run: |
+          echo "🚀 Starting visa slot monitoring..."
+          echo "⏰ Interval: $MONITOR_INTERVAL seconds"
+          echo "📱 Telegram: $([ -n "$TELEGRAM_BOT_TOKEN" ] && echo "Enabled" || echo "Disabled")"
+
+          # Run the GitHub Actions compatible monitor
+          python github_monitor.py
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: monitor-logs-${{ github.run_number }}
+          path: |
+            *.log
+            visa_automation.log
+          retention-days: 7
