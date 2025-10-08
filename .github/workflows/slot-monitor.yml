@@ -43,12 +43,6 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: "latest"
-      - name: Set environment variables
-        run: |
-          echo "MONITOR_INTERVAL=$MONITOR_INTERVAL" >> $GITHUB_ENV
-          echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN" >> $GITHUB_ENV
-          echo "TELEGRAM_CHAT_ID=$TELEGRAM_CHAT_ID" >> $GITHUB_ENV
-          echo "SLOT_API_KEY=HZK5KL" >> $GITHUB_ENV
 
       - name: Run slot monitor
         run: |
